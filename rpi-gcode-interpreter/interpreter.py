@@ -1,6 +1,6 @@
 import time
-import sys
 import math
+import sys
 from threading import Thread
 import motor_controller as mc
 
@@ -13,8 +13,8 @@ class Interpreter:
         self.gcode_data_list = []
 
         # gcode_path = read_from_args
-        self.load_gcode_from_file("test.gcode")
-        # self.load_gcode_from_file(sys.argv[1])
+        # self.load_gcode_from_file("test.gcode")
+        self.load_gcode_from_file(sys.argv[1])
 
         # Instantiate motor controller objects
         self.mc = mc.MotorController()
@@ -22,6 +22,7 @@ class Interpreter:
         # Store the different axes in use
         self.axes = ('x', 'y', 'z')
         self.axes_thread = {}
+        self.line_count = 0
         self.line_counter = 0
 
         self.interpret_data()
@@ -33,11 +34,9 @@ class Interpreter:
                     self.gcode_data_list.append(line.split())
 
     def interpret_data(self):
-        lines_count = len(self.gcode_data_list)
-        lines_counter = 0
+        self.line_count = len(self.gcode_data_list)
         for line in self.gcode_data_list:
-            lines_counter += 1
-            print("Processing line " + str(lines_counter) + " / " + str(lines_count))
+            self.line_counter += 1
             try:
                 point_data = []
                 for arg in line:
@@ -62,7 +61,7 @@ class Interpreter:
                 print("Unsupported or Malformed GCode: "),
                 print(line)
                 print("Skipping command...")
-        print("Finished processing GCode file")
+        print("\nFinished processing GCode file!")
 
     def move_to_coords(self, point_data, speed):
 
@@ -98,7 +97,7 @@ class Interpreter:
 
         # Create threads to carry out this motion
         for axis in axis_deltas:
-            threads.append(StepperThread(axis[0], axis[1], axis[2], motion_duration, self.mc))
+            threads.append(StepperThread(axis[0], axis[1], axis[2], motion_duration, self))
 
         # Set threads running
         for thread in threads:
@@ -110,19 +109,26 @@ class Interpreter:
 
 
 class StepperThread(Thread):
-        def __init__(self, axis, steps, direction, motion_duration, motor_controller):
+        def __init__(self, axis, steps, direction, motion_duration, interpreter):
             Thread.__init__(self)
             self.axis = axis
             self.steps = steps
             self.direction = direction
             self.motion_duration = motion_duration
-            self.mc = motor_controller
+            self.mc = interpreter.mc
+            self.interpreter = interpreter
 
         def run(self):
             space_time = self.motion_duration / self.steps
             for i in range(0, self.steps):
                 self.mc.axis_step(self.axis, self.direction)
                 time.sleep(space_time)
+                info = "Processing line " + str(self.interpreter.line_counter) + " / " + str(self.interpreter.line_count)
+                for axis in self.interpreter.axes:
+                    info += ("\t\t" + str(axis.upper()) + ":" + str(self.mc.current_steps[axis]))
+                sys.stdout.write("\r" + info)
+                sys.stdout.flush()
+
 
 if __name__ == "__main__":
     interpreter = Interpreter()
