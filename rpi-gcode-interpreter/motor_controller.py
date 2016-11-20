@@ -3,14 +3,24 @@
 #       YOU WILL HAVE TO PROVIDE THESE FUNCTIONS YOURSELF  #
 ############################################################
 
+import sys
+"""
 import RPi.GPIO as GPIO
-
+"""
 
 class MotorController:
     def __init__(self):
 
         # Distances in mm that each step of the stepper motor propels each axis
-        self.distances_per_step = {'x': 0.1, 'y': 0.1, 'z': 0.1}
+        self.mm_per_step = {'x': 0.000523, 'y': 0.000523, 'z': 0.000523}
+
+        # This value will be used as speed for the 'rapid movement' of the machine
+        # Measured in steps per second
+        self.rapid_speed_maximum = 625.0
+
+        # This value will be used as the fastest to move the machine when mill is lowered
+        # Measured in steps per second
+        self.work_speed_maximum = 625.0
 
         # These are the pins to control the L293D motor drivers for the CNC
         self.control_pins = {'x': (6, 19, 13, 26),
@@ -19,8 +29,8 @@ class MotorController:
 
         # Tracks how many steps have been taken on each axis at any point
         self.current_steps = {'x': 0, 'y': 0, 'z': 0}
-
-        # Configure pin out options
+        """
+        # Configure pinout options
         GPIO.setmode(GPIO.BCM)
         GPIO.setwarnings(False)
 
@@ -28,16 +38,24 @@ class MotorController:
         for pins in self.control_pins:
             for pin in pins:
                 GPIO.setup(pin, GPIO.OUT)
-
+        """
     def axis_step(self, axis, direction):
 
         # Interacts with the pins to move the motor to the next step
 
         # Releases holding torque power from previously powered pin
-        GPIO.output(self.control_pins[axis][self.current_steps[axis] % 4], False)
+        # GPIO.output(self.control_pins[axis][self.current_steps[axis] % 4], False)
 
-        # Increments counter that locally keeps track of which part of the (4-phase) rotation cycle we are in
+        # Increments counter that keeps track of which part of the (4-phase) rotation cycle we are in
         self.current_steps[axis] += direction
+        # print(str(axis) + ": " + str(self.current_steps[axis]))
 
         # Power next pin in phase to drive motor
-        GPIO.output(self.control_pins[axis][self.current_steps[axis] % 4], True)
+        # GPIO.output(self.control_pins[axis][self.current_steps[axis] % 4], True)
+
+# Allows standalone running of the motor_controller script to move carts along axis by amount specified in args
+# Syntax is <axis> <direction> <steps> eg python motor_controller.py x -1 2400
+if __name__ == "__main__":
+    motor_controller = MotorController()
+    for i in range(0, sys.argv[3]):
+        motor_controller.axis_step(sys.argv[1], sys.argv[2])
